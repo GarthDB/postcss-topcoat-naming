@@ -1,0 +1,6 @@
+src/
+coverage/
+.babelrc
+.eslintrc
+.nyc_output
+.gitignore
