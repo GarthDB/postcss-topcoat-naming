@@ -1,0 +1,14 @@
+/* topdoc
+name: Secondary Button
+description: a secondary button
+markup: |
+  <button class="Button--secondary"/>
+  <button class="Button--secondary is-disabled"/>
+*/
+.Button--secondary {
+  color: #333;
+  color: #666;
+}
+.Button--secondary:disabled, .Button--secondary.is-disabled {
+  opacity: 0.1;
+}

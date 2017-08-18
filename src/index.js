@@ -3,6 +3,7 @@ import TopcoatNaming from './topcoat-naming';
 
 export default postcss.plugin('postcss-topcoat-naming',
   (opts = {}) =>
-    (css) =>
-      new TopcoatNaming(css, opts)
+    (css, result) => {
+      return new TopcoatNaming(css, result, opts)
+    }
 );

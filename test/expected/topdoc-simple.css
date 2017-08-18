@@ -1,0 +1,13 @@
+/* topdoc
+name: Button
+description: a simple button
+markup: |
+  <button class="Button"/>
+  <button class="Button is-disabled"/>
+*/
+.Button {
+  color: #333;
+}
+.Button:disabled, .Button.is-disabled {
+  opacity: 0.1;
+}

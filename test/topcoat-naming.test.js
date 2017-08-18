@@ -1,6 +1,7 @@
 import postcss from 'postcss';
 import test from 'ava';
 import TopcoatNaming from '../src/index';
+import fs from 'fs';
 import {_outdent} from '../src/topcoat-naming.js';
 
 function runTopcoatNaming(input, opts) {
@@ -242,4 +243,22 @@ test('Outdent function', (t) => {
 }`;
   const result = _outdent(postcss.parse(input), 2);
   t.is(result.toString(), expected);
+});
+
+test('Simple Topdoc collapsing', (t) => {
+  const input = fs.readFileSync('./test/fixtures/topdoc-simple.css', 'utf8');
+  const expected = fs.readFileSync('./test/expected/topdoc-simple.css', 'utf8');
+  return runTopcoatNaming(input, {})
+    .then((result) => {
+      t.deepEqual(result.css, expected);
+    });
+});
+
+test('Modifier Topdoc collapsing', (t) => {
+  const input = fs.readFileSync('./test/fixtures/topdoc-simple.css', 'utf8');
+  const expected = fs.readFileSync('./test/expected/topdoc-modifier.css', 'utf8');
+  return runTopcoatNaming(input, {modifier: 'secondary'})
+    .then((result) => {
+      t.deepEqual(result.css, expected);
+    });
 });

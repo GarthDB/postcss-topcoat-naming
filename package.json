@@ -44,8 +44,10 @@
   },
   "homepage": "https://github.com/GarthDB/postcss-topcoat-naming#readme",
   "dependencies": {
+    "js-yaml": "^3.9.1",
+    "mustache": "^2.3.0",
     "postcss": "^6.0.8",
-    "postcss-topdoc": "^0.1.0"
+    "postcss-topdoc": "^0.1.1"
   },
   "devDependencies": {
     "atomdoc-cli": "^1.1.0",
