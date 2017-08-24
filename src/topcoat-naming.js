@@ -4,20 +4,71 @@ import TopdocParser from 'postcss-topdoc/lib/topdoc-parser';
 import yaml from 'js-yaml';
 
 /**
- *  Private: converts class name selector to a DOM class string
+ *  Private: default function for creating CSS selector class names.
  *
- *  * `classSelector` {String} string with '.' syntax
+ *  * `arguments`
+ *    * `block` {String} Block element name
+ *    * `modifier` (optional) {String} modifier name
+ *    * `state` (optional) {String} state name.
  *
  *  ## Examples
  *
  *  ```js
- *  _classSelectorToDomClass('.a-class.b-class'); // returns 'a-class b-class'
+ *  _defaultSelectorClassNaming({
+ *    block: 'Button',
+ *    modifier: 'secondary',
+ *    state: ':disabled'
+ *  }); //returns ".Button--secondary:disabled, .Button--secondary.is-disabled"
  *  ```
  *
- *  Returns {String} removes '.' and adds space between class names.
+ *  Returns {String} CSS selector
  */
-function _classSelectorToDomClass(classSelector) {
-  return classSelector.split('.').join(' ').trim();
+function _defaultSelectorClassNaming({block, modifier = false, state = false}) {
+  let result = `.${block}`;
+  if(modifier) result += `--${modifier}`;
+  if(state) {
+    const stateRegex = /^:?(\w+)$/;
+    const matches = state.match(stateRegex);
+    const cleanStateName = matches[1];
+    // has colon for dom states (i.e. :disabled)
+    if((matches[1] != matches[0])) {
+      result += `${state}, ${result}.is-${cleanStateName}`;
+    } else {
+      result += `.is-${cleanStateName}`;
+    }
+  }
+  return result;
+}
+/**
+ *  Private: default function for creating class names for use in Topdoc markup.
+ *
+ *  * `arguments`
+ *    * `block` {String} Block element name
+ *    * `modifier` (optional) {String} modifier name
+ *    * `state` (optional) {String} state name.
+ *
+ *  ## Examples
+ *
+ *  ```js
+ *  _defaultDomClassNaming({
+ *    block: 'Button',
+ *    modifier: 'secondary',
+ *    state: ':disabled'
+ *  }); //returns "Button--secondary is-disabled"
+ *  ```
+ *
+ *  Returns {String} DOM class name.
+ */
+function _defaultDomClassNaming({block, modifier = false, state = false}) {
+  let result = `${block}`;
+  if(modifier) result += `--${modifier}`;
+  if(state) {
+    const stateRegex = /^:?(\w+)$/;
+    const matches = state.match(stateRegex);
+    const cleanStateName = matches[1];
+    result += ` is-${cleanStateName}`;
+  }
+  return result;
 }
 /**
  *  Private: gets a corresponding topdoc comment
@@ -73,76 +124,6 @@ export function _outdent(rule, degree = 1) {
   return rule;
 }
 
-/**
- *  Private: takes a class name and modifier to build new class name for css selector.
- *
- *  * `className` {String} the block name
- *  * `modifier` (optional) {String} the modifier to append if present
- *
- *  Returns a {String} of the built class name (with prepended .)
- */
-function _buildClassName(className, modifier = '') {
-  if(modifier !== '') {
-    return `${className}--${modifier}`;
-  }
-  return className;
-}
-const stateTemplate = '.{{className}}.is-{{stateName}}';
-/**
- *  Private: adds state to class name
- *
- *  * `className` {String} block class name
- *  * `stateName` {String} state name to append
- *
- *  Returns {String} combined class name.
- */
-function _buildStateClassName(className, stateName) {
-  return Mustache.render(stateTemplate, {className, stateName: stateName.replace(':','')});
-}
-/**
- *  Private: adds state to class name
- *
- *  * `className` {String} name to append the state.
- *  * `stateName` {String} state name to be appended to class.
- *
- *  ## Examples
- *
- *  ```js
- *  _buildStateRule('.button', ':hover');
- *  //returns '.button:hover, .button.is-hover{}'
- *  ```
- *
- *  ```js
- *  _buildStateRule('.menu', 'open');
- *  //returns '.menu.is-open{}'
- *  ```
- *
- *  Returns a {String} of the complete selector
- */
-function _buildStateRule(className, stateName) {
-  const stateRegex = /^:?(\w+)$/;
-  const matches = stateName.match(stateRegex);
-  const newStateName = matches[1];
-  const stateClassName = _buildStateClassName(className, newStateName);
-  // has colon for dom states (i.e. :disabled)
-  if((matches[1] != matches[0])) {
-    return `.${className}${stateName}, ${stateClassName}{}`;
-  }
-  return `${stateClassName}{}`;
-}
-/**
- *  Private: converts state {AtRule} into a {Rule} with correct classname and state selector.
- *
- *  * `stateRule` {AtRule} (i.e. @state :hover {})
- *  * `parentClass` {String} class name of block parent
- *
- *  Returns {Rule}
- */
-function _processStateRule(stateRule, parentClass) {
-  const newSelector = postcss.parse(_buildStateRule(parentClass, stateRule.params));
-  return _convertAtRuleToRule(stateRule, newSelector);
-}
-
 export default class TopcoatNaming {
   /**
    *  Public: TopcoatNaming constructor
@@ -165,6 +146,8 @@ export default class TopcoatNaming {
     this.opts = opts;
     this.css = css;
     this.result = result;
+    this.opts.selectorNaming = this.opts.selectorNaming || _defaultSelectorClassNaming;
+    this.opts.domNaming = this.opts.domNaming || _defaultDomClassNaming;
     const topdocParser = new TopdocParser(css, result, {});
     this.topdoc = topdocParser.topdoc;
     this.css.walkAtRules('block', (rule) => this.processBlockRule(rule));
@@ -178,9 +161,9 @@ export default class TopcoatNaming {
     let modifierTopComponent;
     const topComment = (atRule.prev());
     const topComponent = (topComment) ? _getCorrespondingTopdocComponent(this.topdoc, atRule.prev().source.end): undefined;
-    const newClassName = _buildClassName(atRule.params, this.opts.modifier);
-    const stateNames = [{blockName: newClassName}];
-    const newBlockClass = _convertAtRuleToRule(atRule, `.${newClassName}{}`);
+    const newClassName = this.opts.selectorNaming({block: atRule.params, modifier: this.opts.modifier});
+    const stateNames = [{blockName: this.opts.domNaming({block: atRule.params, modifier: this.opts.modifier})}];
+    const newBlockClass = _convertAtRuleToRule(atRule, `${newClassName}{}`);
     atRule.replaceWith(newBlockClass);
     newBlockClass.walkAtRules('modifier', (modifierAtRule) => {
       if(modifierAtRule.params === this.opts.modifier) {
@@ -213,8 +196,15 @@ export default class TopcoatNaming {
       modifierAtRule.remove();
     });
     newBlockClass.walkAtRules('state', (subAtRule) => {
-      stateNames.push({blockName: _classSelectorToDomClass(_buildStateClassName(newClassName, subAtRule.params))});
-      _outdent(newBlockClass.cloneAfter(_processStateRule(subAtRule, newClassName)));
+      const stateRuleSelector = this.opts.selectorNaming({block: atRule.params, modifier: this.opts.modifier, state: subAtRule.params});
+      stateNames.push(
+        { blockName: this.opts.domNaming({
+          block: atRule.params,
+          modifier: this.opts.modifier,
+          state: subAtRule.params
+        })
+      });
+      _outdent(newBlockClass.cloneAfter(_convertAtRuleToRule(subAtRule, stateRuleSelector)));
       subAtRule.remove();
     });
     if (topComponent) {
