@@ -1,6 +1,6 @@
 {
   "name": "postcss-topcoat-naming",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A PostCSS plugin to collapse BEM atrules and corresponding Topdoc comments",
   "main": "lib/index.js",
   "scripts": {
