@@ -1,0 +1,14 @@
+/* topdoc
+name: Call to Action Button
+description: a call to action button
+markup: |
+  <button class="Button--cta"/>
+  <button class="Button--cta is-disabled"/>
+*/
+.Button--cta {
+  color: #333;
+  color: green;
+}
+.Button--cta:disabled, .Button--cta.is-disabled {
+  opacity: 0.1;
+}

@@ -29,7 +29,7 @@ function customSelectorNaming ({block, element, modifier, state}) {
 function runTopcoatNaming(input, opts) {
   return postcss([
     TopcoatNaming(opts),
-  ]).process(input);
+  ]).process(input, {from: undefined});
 }
 
 test('Collapse state', (t) => {
@@ -357,6 +357,24 @@ markup: |
     }
   };
   return runTopcoatNaming(input, opts)
+    .then((result) => {
+      t.deepEqual(result.css, expected);
+    });
+});
+
+test('Collect modifiers', (t) => {
+  const input = fs.readFileSync('./test/fixtures/topdoc-multiple-modifiers.css', 'utf8');
+  const expected = ['secondary', 'cta'];
+  return runTopcoatNaming(input, {})
+    .then((result) => {
+      t.deepEqual(result.modifiers, expected);
+    });
+});
+
+test('Modifier second Topdoc collapsing', (t) => {
+  const input = fs.readFileSync('./test/fixtures/topdoc-multiple-modifiers.css', 'utf8');
+  const expected = fs.readFileSync('./test/expected/topdoc-cta-modifier.css', 'utf8');
+  return runTopcoatNaming(input, {modifier: 'cta'})
     .then((result) => {
       t.deepEqual(result.css, expected);
     });
