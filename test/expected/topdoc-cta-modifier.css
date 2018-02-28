@@ -6,7 +6,6 @@ markup: |
   <button class="Button--cta is-disabled"/>
 */
 .Button--cta {
-  color: #333;
   color: green;
 }
 .Button--cta:disabled, .Button--cta.is-disabled {

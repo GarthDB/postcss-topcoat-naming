@@ -7,7 +7,13 @@ import {_outdent} from '../src/topcoat-naming.js';
 function customSelectorNaming ({block, element, modifier, state}) {
   const resultAr = [block];
   if(element) resultAr.push(element);
-  if(modifier) resultAr.push(modifier);
+  if (Array.isArray(modifier)) {
+    modifier.forEach(mod => {
+      resultAr.push(mod);
+    });
+  } else if (modifier) {
+    resultAr.push(modifier);
+  }
   let result = '.';
   result += resultAr.map((part) => {
     return part.replace(/\b\w/g, l => l.toUpperCase());
@@ -31,6 +37,21 @@ function runTopcoatNaming(input, opts) {
     TopcoatNaming(opts),
   ]).process(input, {from: undefined});
 }
+
+test('Collapse block', (t) => {
+  const input =
+  `@block Button {
+  color: #333;
+}`;
+  const expected =
+  `.Button {
+  color: #333;
+}`;
+  return runTopcoatNaming(input)
+    .then((result) => {
+      t.deepEqual(result.css.trim(), expected);
+    });
+});
 
 test('Collapse state', (t) => {
   const input =
@@ -60,6 +81,23 @@ test('Collapse modifier', (t) => {
   const input =
   `@block Button {
   color: #333;
+  @modifier secondary {
+    color: #666;
+  }
+}`;
+  const expected =
+  `.Button--secondary {
+  color: #666;
+}`;
+  return runTopcoatNaming(input, {modifier: 'secondary'})
+    .then((result) => {
+      t.deepEqual(result.css.trim(), expected);
+    });
+});
+test('Collapse modifier and state', (t) => {
+  const input =
+  `@block Button {
+  color: #333;
   @state :disabled {
     opacity: 0.1;
   }
@@ -69,7 +107,6 @@ test('Collapse modifier', (t) => {
 }`;
   const expected =
   `.Button--secondary {
-  color: #333;
   color: #666;
 }
 .Button--secondary:disabled, .Button--secondary.is-disabled {
@@ -97,7 +134,6 @@ test('Collapse modifier with state', (t) => {
 }`;
   const expected =
   `.Button--secondary {
-  color: #333;
   color: #666;
 }
 .Button--secondary:disabled, .Button--secondary.is-disabled {
@@ -126,7 +162,6 @@ test('Collapse modifier with state in other order', (t) => {
 }`;
   const expected =
   `.Button--secondary {
-  color: #333;
   color: #666;
 }
 .Button--secondary:disabled, .Button--secondary.is-disabled {
@@ -155,7 +190,6 @@ test('Collapse modifier with new state', (t) => {
 }`;
   const expected =
   `.Button--secondary {
-  color: #333;
   color: #666;
 }
 .Button--secondary:disabled, .Button--secondary.is-disabled {
@@ -185,7 +219,6 @@ test('Collapse modifier with new state in different order', (t) => {
 }`;
   const expected =
   `.Button--secondary {
-  color: #333;
   color: #666;
 }
 .Button--secondary:disabled, .Button--secondary.is-disabled {
@@ -200,7 +233,7 @@ test('Collapse modifier with new state in different order', (t) => {
     });
 });
 
-test('Add nonexistent modifier', (t) => {
+test('Ignore nonexistent modifier', (t) => {
   const input =
   `@block Button {
   color: #333;
@@ -215,10 +248,10 @@ test('Add nonexistent modifier', (t) => {
   }
 }`;
   const expected =
-  `.Button--tertiary {
+  `.Button {
   color: #333;
 }
-.Button--tertiary:disabled, .Button--tertiary.is-disabled {
+.Button:disabled, .Button.is-disabled {
   opacity: 0.1;
 }`;
   return runTopcoatNaming(input, {modifier: 'tertiary'})
@@ -240,7 +273,6 @@ test('Add non-DOM state', (t) => {
 }`;
   const expected =
   `.menu--secondary {
-  color: #333;
   color: #666;
 }
 .menu--secondary.is-open {
@@ -301,7 +333,6 @@ test('Custom Selector Name Function', (t) => {
 }`;
   const expected =
   `.ButtonSecondary {
-  color: #333;
   color: #666;
 }
 .ButtonSecondary:disabled, .ButtonSecondary__disabled {
@@ -330,7 +361,6 @@ markup: |
   <button class="ButtonSecondary__disabled"/>
 */
 .ButtonSecondary {
-  color: #333;
   color: #666;
 }
 .ButtonSecondary:disabled, .ButtonSecondary__disabled {
@@ -343,7 +373,13 @@ markup: |
     domNaming: function({block, element, modifier, state}) {
       const resultAr = [block];
       if(element) resultAr.push(element);
-      if(modifier) resultAr.push(modifier);
+      if (Array.isArray(modifier)) {
+        modifier.forEach(mod => {
+          resultAr.push(mod);
+        });
+      } else if (modifier) {
+        resultAr.push(modifier);
+      }
       let result = resultAr.map((part) => {
         return part.replace(/\b\w/g, l => l.toUpperCase());
       }).join('');
@@ -377,5 +413,55 @@ test('Modifier second Topdoc collapsing', (t) => {
   return runTopcoatNaming(input, {modifier: 'cta'})
     .then((result) => {
       t.deepEqual(result.css, expected);
+    });
+});
+test('Modifier second Topdoc collapsing in different order', (t) => {
+  const input = fs.readFileSync('./test/fixtures/topdoc-multiple-modifiers.css', 'utf8');
+  const expected = fs.readFileSync('./test/expected/topdoc-modifier.css', 'utf8');
+  return runTopcoatNaming(input, {modifier: 'secondary'})
+    .then((result) => {
+      t.deepEqual(result.css, expected);
+    });
+});
+test('Collapsing 3 modifiers', (t) => {
+  const input = fs.readFileSync('./test/fixtures/topdoc-toomany-modifiers.css', 'utf8');
+  const expected = `/* topdoc
+name: Secondary Button
+description: a secondary button
+markup: |
+  <button class="Button--secondary--large--dark"/>
+  <button class="Button--secondary--large--dark is-disabled"/>
+*/
+.Button--secondary--large--dark {
+  color: black;
+  width: 200px;
+}
+.Button--secondary--large--dark:disabled, .Button--secondary--large--dark.is-disabled {
+  opacity: 0.1;
+}`;
+  return runTopcoatNaming(input, {modifiers: ['secondary', 'large', 'dark']})
+    .then((result) => {
+      t.deepEqual(result.css.trim(), expected);
+    });
+});
+test('Collapsing 3 modifiers in different order', (t) => {
+  const input = fs.readFileSync('./test/fixtures/topdoc-toomany-modifiers.css', 'utf8');
+  const expected = `/* topdoc
+name: Secondary Button
+description: a secondary button
+markup: |
+  <button class="Button--large--dark--secondary"/>
+  <button class="Button--large--dark--secondary is-disabled"/>
+*/
+.Button--large--dark--secondary {
+  color: #666;
+  width: 200px;
+}
+.Button--large--dark--secondary:disabled, .Button--large--dark--secondary.is-disabled {
+  opacity: 0.1;
+}`;
+  return runTopcoatNaming(input, {modifiers: ['large', 'dark', 'secondary']})
+    .then((result) => {
+      t.deepEqual(result.css.trim(), expected);
     });
 });
