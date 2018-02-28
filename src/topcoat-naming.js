@@ -3,6 +3,26 @@ import Mustache from 'mustache';
 import TopdocParser from 'postcss-topdoc/lib/topdoc-parser';
 import yaml from 'js-yaml';
 
+/**
+ *  Private: default function for creating CSS selector class names.
+ *
+ *  * `arguments`
+ *    * `block` {String} Block element name
+ *    * `modifier` (optional) {String} or {Array} of modifier name(s)
+ *    * `state` (optional) {String} state name.
+ *
+ *  ## Examples
+ *
+ *  ```js
+ *  _defaultSelectorClassNaming({
+ *    block: 'Button',
+ *    modifier: 'secondary',
+ *    state: ':disabled'
+ *  }); //returns ".Button--secondary:disabled, .Button--secondary.is-disabled"
+ *  ```
+ *
+ *  Returns {String} CSS selector
+ */
 function _defaultSelectorClassNaming({
   block,
   modifier = false,
@@ -29,7 +49,26 @@ function _defaultSelectorClassNaming({
   }
   return result;
 }
-
+/**
+ *  Private: default function for creating class names for use in Topdoc markup.
+ *
+ *  * `arguments`
+ *    * `block` {String} Block element name
+ *    * `modifier` (optional) {String} or {Array} of modifier name(s)
+ *    * `state` (optional) {String} state name.
+ *
+ *  ## Examples
+ *
+ *  ```js
+ *  _defaultDomClassNaming({
+ *    block: 'Button',
+ *    modifier: 'secondary',
+ *    state: ':disabled'
+ *  }); //returns "Button--secondary is-disabled"
+ *  ```
+ *
+ *  Returns {String} DOM class name.
+ */
 function _defaultDomClassNaming({
   block,
   modifier = false,
@@ -51,7 +90,22 @@ function _defaultDomClassNaming({
   }
   return result;
 }
-
+/**
+ *  Private: Using the PostCSS parent tree, this method returns an object of the parent AtRules.
+ *
+ *  * `node` {Object} PostCSS node
+ *  * `breakdown` (optional) {Object} an existing breakdown to include in the final output.
+ *
+ *  ## Examples
+ *
+ *  ```js
+ *  _getAtRuleBreakdown(stateAtRule, {modifier: 'secondary'});
+ *  // returns something like
+ *  // {block: 'Button', modifier: 'secondary', state: 'disabled'}
+ *  ```
+ *
+ *  Returns {Object} of AtRule Breakdown
+ */
 function _getAtRuleBreakdown(node, breakdown = {}) {
   if (node.type === 'atrule') {
     switch (node.name) {
