@@ -60,9 +60,6 @@ test('Collapse state', (t) => {
   @state :disabled {
     opacity: 0.1;
   }
-  @modifier secondary {
-    color: #666;
-  }
 }`;
   const expected =
   `.Button {

@@ -125,6 +125,14 @@ function _getAtRuleBreakdown(node, breakdown = {}) {
   return _getAtRuleBreakdown(node.parent, breakdown);
 }
 
+/**
+ *  Private: merge declarations into an existing rule. If declaration already exists in the existing rule it replaces the exisiting value with the new declaration value.
+ *
+ *  * `existingRule` {Object} PostCSS node
+ *  * `newDecls` {Array} of PostCSS Declarations
+ *
+ *  Returns {Object} PostCSS node
+ */
 function _mergeRules(existingRule, newDecls) {
   const decls = (Array.isArray(newDecls)) ? newDecls : [newDecls];
   decls.forEach(newDecl => {
@@ -143,7 +151,15 @@ function _mergeRules(existingRule, newDecls) {
   });
   return existingRule;
 }
-
+/**
+ *  Private: gets a corresponding topdoc comment
+ *
+ *  * `topdoc` {TopDocument} containing component
+ *  * `node` {Object} PostCSS node
+ *
+ *  Returns {undefined} if no corresponding topdoc component is found.
+ *  Returns {TopComponent} if found.
+ */
 function _getCorrespondingTopdocComponent(topdoc, node) {
   if (!node.prev()) return false;
   const loc = node.prev().source.end;
@@ -152,6 +168,14 @@ function _getCorrespondingTopdocComponent(topdoc, node) {
   });
 }
 
+/**
+ *  Private: coverts PostCSS AtRule to Rule.
+ *
+ *  * `atRule` {Object} PostCSS AtRule
+ *  * `selector` {String} new selector for the returned Rule
+ *
+ *  Returns {Object} PostCSS Rule
+ */
 function _convertAtRuleToRule(atRule, selector) {
   const root = postcss.parse(`${selector}{}`);
   root.first.raws = atRule.raws;
@@ -159,7 +183,14 @@ function _convertAtRuleToRule(atRule, selector) {
   root.first.raws.semicolon = true;
   return root.first.remove();
 }
-
+/**
+ *  Private: outdents rule (moves an indented rule out)
+ *
+ *  * `rule` {Rule} or {AtRule} that needs to be outdented
+ *  * `degree` (optional) {Int} Number of indents to be removed.
+ *
+ *  Returns the same {Rule} with the outdents applied.
+ */
 export function _outdent(rule, degree = 1) {
   const regex = new RegExp(`(  |\t){${degree}}`);
   rule.walk((child) => {
@@ -178,6 +209,23 @@ export function _outdent(rule, degree = 1) {
 }
 
 export default class TopcoatNaming {
+  /**
+   *  Public: TopcoatNaming constructor
+   *
+   *  * `css` {Root} from PostCSS parser
+   *  * `result` {Result} from PostCSS
+   *  * `opts` {Object} options
+   *
+   *  ## Examples
+   *
+   *  ```js
+   *  export default postcss.plugin('postcss-topcoat-naming',
+   *    (opts = {}) =>
+   *      (css) =>
+   *        new TopcoatNaming(css, opts)
+   *  );
+   *  ```
+   */
   constructor(css, result, opts) {
     this.opts = opts;
     this.css = css;
@@ -189,9 +237,11 @@ export default class TopcoatNaming {
     const topdocParser = new TopdocParser(css, result, {});
     this.topdoc = topdocParser.topdoc;
     this.process();
-
-    // this.css.walkAtRules('block', (rule) => this.processBlockRule(rule));
   }
+  /**
+   *  Private: processes CSS nodes from `this.css`
+   *
+   */
   process() {
     this.css.each(node => {
       if (node.type === 'atrule') {
@@ -199,6 +249,11 @@ export default class TopcoatNaming {
       }
     });
   }
+  /**
+   *  Private: processes {AtRule}
+   *
+   *  * `atRule` {AtRule};
+   */
   processAtRule(atRule) {
     switch (atRule.name) {
       case 'block':
@@ -228,6 +283,11 @@ export default class TopcoatNaming {
         break;
     }
   }
+  /**
+   *  Private: processes block {AtRule}
+   *
+   *  * `blockRule` {AtRule} with a name of 'block'
+   */
   processBlockRule(blockRule) {
     this.modifierTopdocs = {};
     this.nestedParts = [];
@@ -248,6 +308,12 @@ export default class TopcoatNaming {
     }));
     return blockRule.replaceWith(_convertAtRuleToRule(blockRule, blockRuleSelector));
   }
+  /**
+   *  Private: processes nested {Nodes}
+   *
+   *  * `nestedParts` {Array} PostCSS nodes
+   *  * `blockRule` {Object} PostCSS parent block rule
+   */
   processNestedParts(nestedParts, blockRule) {
     nestedParts.forEach(part => {
       if (!part.breakdown.hasOwnProperty('modifier') || part.breakdown.modifier == '') {
@@ -273,6 +339,12 @@ export default class TopcoatNaming {
       });
     });
   }
+  /**
+   *  Private: processes state {AtRule}
+   *
+   *  * `stateRule` {AtRule} with a name of 'state'
+   *  * `blockRule` {AtRule} that contains the `stateRule`
+   */
   processStateRule(stateRule, blockRule) {
     const stateRuleSelector = this.opts.selectorNaming({
       block: blockRule.params,
@@ -292,6 +364,12 @@ export default class TopcoatNaming {
       return result;
     }
   }
+  /**
+   *  Private: processes modifier {AtRule}
+   *
+   *  * `modifierRule` {AtRule} with a name of 'modifier'
+   *  * `blockRule` {AtRule} that contains the `modifierRule`
+   */
   processModifierRule(modifierRule, blockRule) {
     modifierRule.each(node => {
       if (node.type === 'atrule') {
@@ -305,6 +383,11 @@ export default class TopcoatNaming {
     });
     return _mergeRules(blockRule, modifierRule.nodes);
   }
+  /**
+   *  Private: merges Topdoc comments when modifier Topdoc data exists
+   *
+   *  * `blockRule` {AtRule} that has the existing Topdoc comments
+   */
   processTopdocComments(blockRule) {
     const topComponent = _getCorrespondingTopdocComponent(this.topdoc, blockRule);
     if (topComponent) {
