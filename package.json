@@ -1,11 +1,11 @@
 {
-  "name": "postcss-topcoat-naming",
+  "name": "postcss-topcomponent",
   "version": "0.3.0",
   "description": "A PostCSS plugin to collapse BEM atrules and corresponding Topdoc comments",
   "main": "lib/index.js",
   "scripts": {
     "compile": "babel -d lib/ src/",
-    "prepublish": "npm run compile && npm run atomdoc && npm run lint",
+    "prepublish": "npm run compile && npm run lint",
     "atomdoc": "atomdoc src/",
     "lint": "eslint ./src",
     "test": "ava",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GarthDB/postcss-topcoat-naming.git"
+    "url": "git+https://github.com/GarthDB/postcss-topcomponent.git"
   },
   "keywords": [
     "bem",
@@ -40,9 +40,9 @@
   "author": "Garth Braithwaite <garthdb@gmail.com> (http://garthdb.com)",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/GarthDB/postcss-topcoat-naming/issues"
+    "url": "https://github.com/GarthDB/postcss-topcomponent/issues"
   },
-  "homepage": "https://github.com/GarthDB/postcss-topcoat-naming#readme",
+  "homepage": "https://github.com/GarthDB/postcss-topcomponent#readme",
   "dependencies": {
     "js-yaml": "^3.9.1",
     "mustache": "^2.3.0",
@@ -50,14 +50,13 @@
     "postcss-topdoc": "^0.1.1"
   },
   "devDependencies": {
-    "atomdoc-cli": "^1.1.0",
+    "atomdoc-cli": "^1.1.1",
     "ava": "^0.21.0",
     "babel-cli": "^6.24.1",
     "babel-core": "^6.25.0",
     "babel-plugin-add-module-exports": "^0.2.1",
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.6.0",
-    "babel-preset-es2015": "^6.24.1",
     "babel-register": "^6.24.1",
     "codecov": "^2.3.0",
     "eslint": "^4.4.1",

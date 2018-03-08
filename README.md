@@ -1,6 +1,6 @@
-# postcss-topcoat-naming
+# postcss-topcomponent
 
-[![Build Status](https://travis-ci.org/GarthDB/postcss-topcoat-naming.svg?branch=master)](https://travis-ci.org/GarthDB/postcss-topcoat-naming) [![codecov](https://codecov.io/gh/GarthDB/postcss-topcoat-naming/branch/master/graph/badge.svg)](https://codecov.io/gh/GarthDB/postcss-topcoat-naming) [![Dependency Status](https://david-dm.org/GarthDB/postcss-topcoat-naming.svg)](https://david-dm.org/GarthDB/postcss-topcoat-naming) [![npm version](https://badge.fury.io/js/postcss-topcoat-naming.svg)](https://badge.fury.io/js/postcss-topcoat-naming)
+[![Build Status](https://travis-ci.org/GarthDB/postcss-topcomponent.svg?branch=master)](https://travis-ci.org/GarthDB/postcss-topcomponent) [![codecov](https://codecov.io/gh/GarthDB/postcss-topcomponent/branch/master/graph/badge.svg)](https://codecov.io/gh/GarthDB/postcss-topcomponent) [![Dependency Status](https://david-dm.org/GarthDB/postcss-topcomponent.svg)](https://david-dm.org/GarthDB/postcss-topcomponent) [![npm version](https://badge.fury.io/js/postcss-topcomponent.svg)](https://badge.fury.io/js/postcss-topcomponent)
 
 ---
 
@@ -78,7 +78,7 @@ Using it as a PostCSS plugin.
 
 ```js
 import postcss from 'postcss';
-import TopcoatNaming from 'postcss-topcoat-naming';
+import TopcoatNaming from 'postcss-topcomponent';
 
 postcss([
   TopcoatNaming({modifier: 'secondary'}),

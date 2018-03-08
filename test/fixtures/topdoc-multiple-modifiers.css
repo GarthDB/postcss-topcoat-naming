@@ -1,0 +1,27 @@
+/* topdoc
+name: Button
+description: a simple button
+markup: |
+  {{#state}}<button class="{{ blockName }}"/>
+  {{/state}}
+*/
+@block Button {
+  color: #333;
+  @state :disabled {
+    opacity: 0.1;
+  }
+  /* topdoc
+  name: Secondary Button
+  description: a secondary button
+  */
+  @modifier secondary {
+    color: #666;
+  }
+  /* topdoc
+  name: Call to Action Button
+  description: a call to action button
+  */
+  @modifier cta {
+    color: green;
+  }
+}

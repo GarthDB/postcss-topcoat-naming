@@ -8,7 +8,7 @@ import yaml from 'js-yaml';
  *
  *  * `arguments`
  *    * `block` {String} Block element name
- *    * `modifier` (optional) {String} modifier name
+ *    * `modifier` (optional) {String} or {Array} of modifier name(s)
  *    * `state` (optional) {String} state name.
  *
  *  ## Examples
@@ -23,15 +23,25 @@ import yaml from 'js-yaml';
  *
  *  Returns {String} CSS selector
  */
-function _defaultSelectorClassNaming({block, modifier = false, state = false}) {
+function _defaultSelectorClassNaming({
+  block,
+  modifier = false,
+  state = false
+}) {
   let result = `.${block}`;
-  if(modifier) result += `--${modifier}`;
-  if(state) {
+  if (Array.isArray(modifier)) {
+    modifier.forEach(mod => {
+      result += `--${mod}`;
+    });
+  } else if (modifier) {
+    result += `--${modifier}`;
+  }
+  if (state) {
     const stateRegex = /^:?(\w+)$/;
     const matches = state.match(stateRegex);
     const cleanStateName = matches[1];
     // has colon for dom states (i.e. :disabled)
-    if((matches[1] != matches[0])) {
+    if ((matches[1] != matches[0])) {
       result += `${state}, ${result}.is-${cleanStateName}`;
     } else {
       result += `.is-${cleanStateName}`;
@@ -44,7 +54,7 @@ function _defaultSelectorClassNaming({block, modifier = false, state = false}) {
  *
  *  * `arguments`
  *    * `block` {String} Block element name
- *    * `modifier` (optional) {String} modifier name
+ *    * `modifier` (optional) {String} or {Array} of modifier name(s)
  *    * `state` (optional) {String} state name.
  *
  *  ## Examples
@@ -59,10 +69,20 @@ function _defaultSelectorClassNaming({block, modifier = false, state = false}) {
  *
  *  Returns {String} DOM class name.
  */
-function _defaultDomClassNaming({block, modifier = false, state = false}) {
+function _defaultDomClassNaming({
+  block,
+  modifier = false,
+  state = false
+}) {
   let result = `${block}`;
-  if(modifier) result += `--${modifier}`;
-  if(state) {
+  if (Array.isArray(modifier)) {
+    modifier.forEach(mod => {
+      result += `--${mod}`;
+    });
+  } else if (modifier) {
+    result += `--${modifier}`;
+  }
+  if (state) {
     const stateRegex = /^:?(\w+)$/;
     const matches = state.match(stateRegex);
     const cleanStateName = matches[1];
@@ -71,26 +91,90 @@ function _defaultDomClassNaming({block, modifier = false, state = false}) {
   return result;
 }
 /**
+ *  Private: Using the PostCSS parent tree, this method returns an object of the parent AtRules.
+ *
+ *  * `node` {Object} PostCSS node
+ *  * `breakdown` (optional) {Object} an existing breakdown to include in the final output.
+ *
+ *  ## Examples
+ *
+ *  ```js
+ *  _getAtRuleBreakdown(stateAtRule, {modifier: 'secondary'});
+ *  // returns something like
+ *  // {block: 'Button', modifier: 'secondary', state: 'disabled'}
+ *  ```
+ *
+ *  Returns {Object} of AtRule Breakdown
+ */
+function _getAtRuleBreakdown(node, breakdown = {}) {
+  if (node.type === 'atrule') {
+    switch (node.name) {
+      case 'block':
+        breakdown.block = node.params;
+        break;
+      case 'modifier':
+        breakdown.modifier = node.params;
+        break;
+      case 'state':
+        breakdown.state = node.params;
+        break;
+    }
+  } else if (node.type === 'root') {
+    return breakdown;
+  }
+  return _getAtRuleBreakdown(node.parent, breakdown);
+}
+
+/**
+ *  Private: merge declarations into an existing rule. If declaration already exists in the existing rule it replaces the exisiting value with the new declaration value.
+ *
+ *  * `existingRule` {Object} PostCSS node
+ *  * `newDecls` {Array} of PostCSS Declarations
+ *
+ *  Returns {Object} PostCSS node
+ */
+function _mergeRules(existingRule, newDecls) {
+  const decls = (Array.isArray(newDecls)) ? newDecls : [newDecls];
+  decls.forEach(newDecl => {
+    let matched = false;
+    existingRule.each(decl => {
+      if (decl.type === 'decl') {
+        if (decl.prop === newDecl.prop) {
+          matched = true;
+          decl.value = newDecl.value;
+        }
+      }
+    });
+    if (!matched) {
+      existingRule.append(newDecl);
+    }
+  });
+  return existingRule;
+}
+/**
  *  Private: gets a corresponding topdoc comment
  *
  *  * `topdoc` {TopDocument} containing component
- *  * `loc` {Object} line and column of the topdoc component comment end.
+ *  * `node` {Object} PostCSS node
  *
  *  Returns {undefined} if no corresponding topdoc component is found.
  *  Returns {TopComponent} if found.
  */
-function _getCorrespondingTopdocComponent(topdoc, loc) {
+function _getCorrespondingTopdocComponent(topdoc, node) {
+  if (!node.prev()) return false;
+  const loc = node.prev().source.end;
   return topdoc.components.find((component) => {
     return (component.commentEnd.line == loc.line && component.commentEnd.column == loc.column);
   });
 }
+
 /**
- *  Private: converts {AtRule} and child nodes to a {Rule} with a new selector.
+ *  Private: coverts PostCSS AtRule to Rule.
  *
- *  * `atRule` {AtRule} postcss at rule
- *  * `selector` {String} css selector
+ *  * `atRule` {Object} PostCSS AtRule
+ *  * `selector` {String} new selector for the returned Rule
  *
- *  Returns {Rule} with all the AtRule child nodes.
+ *  Returns {Object} PostCSS Rule
  */
 function _convertAtRuleToRule(atRule, selector) {
   const root = postcss.parse(`${selector}{}`);
@@ -110,15 +194,15 @@ function _convertAtRuleToRule(atRule, selector) {
 export function _outdent(rule, degree = 1) {
   const regex = new RegExp(`(  |\t){${degree}}`);
   rule.walk((child) => {
-    if(child.raws.after) {
+    if (child.raws.after) {
       child.raws.after = child.raws.after.replace(regex, '')
     }
     child.raws.before = child.raws.before.replace(regex, '')
   });
-  if(rule.raws.after) {
+  if (rule.raws.after) {
     rule.raws.after = rule.raws.after.replace(regex, '')
   }
-  if(rule.raws.before) {
+  if (rule.raws.before) {
     rule.raws.before = rule.raws.before.replace(regex, '')
   }
   return rule;
@@ -146,72 +230,191 @@ export default class TopcoatNaming {
     this.opts = opts;
     this.css = css;
     this.result = result;
+    this.result.modifiers = [];
     this.opts.selectorNaming = this.opts.selectorNaming || _defaultSelectorClassNaming;
+    this.opts.modifiers = this.opts.modifiers || [this.opts.modifier];
     this.opts.domNaming = this.opts.domNaming || _defaultDomClassNaming;
     const topdocParser = new TopdocParser(css, result, {});
     this.topdoc = topdocParser.topdoc;
-    this.css.walkAtRules('block', (rule) => this.processBlockRule(rule));
+    this.process();
+  }
+  /**
+   *  Private: processes CSS nodes from `this.css`
+   *
+   */
+  process() {
+    this.css.each(node => {
+      if (node.type === 'atrule') {
+        this.processAtRule(node);
+      }
+    });
+  }
+  /**
+   *  Private: processes {AtRule}
+   *
+   *  * `atRule` {AtRule};
+   */
+  processAtRule(atRule) {
+    switch (atRule.name) {
+      case 'block':
+        this.processBlockRule(atRule);
+        break;
+      case 'state':
+      case 'modifier':
+      case 'element':
+        _outdent(atRule);
+        const newPart = {
+          breakdown: _getAtRuleBreakdown(atRule),
+          atRule: atRule.clone()
+        };
+        this.nestedParts.push(newPart);
+        if (newPart.breakdown.hasOwnProperty('modifier') && this.opts.modifiers.indexOf(newPart.breakdown.modifier) >= 0 && this.matchedModifiers.indexOf(newPart.breakdown.modifier) == -1) {
+          this.matchedModifiers.push(newPart.breakdown.modifier);
+        }
+        if (atRule.name === 'modifier') {
+          this.result.modifiers.push(atRule.params);
+          const modifierTopdocs = _getCorrespondingTopdocComponent(this.topdoc, atRule);
+          if(modifierTopdocs){
+            this.modifierTopdocs[atRule.params] = modifierTopdocs;
+            atRule.prev().remove();
+          }
+        }
+        atRule.remove();
+        break;
+    }
   }
   /**
    *  Private: processes block {AtRule}
    *
-   *  * `atRule` {AtRule} with a name of 'block';
+   *  * `blockRule` {AtRule} with a name of 'block'
    */
-  processBlockRule (atRule) {
-    let modifierTopComponent;
-    const topComment = (atRule.prev());
-    const topComponent = (topComment) ? _getCorrespondingTopdocComponent(this.topdoc, atRule.prev().source.end): undefined;
-    const newClassName = this.opts.selectorNaming({block: atRule.params, modifier: this.opts.modifier});
-    const stateNames = [{blockName: this.opts.domNaming({block: atRule.params, modifier: this.opts.modifier})}];
-    const newBlockClass = _convertAtRuleToRule(atRule, `${newClassName}{}`);
-    atRule.replaceWith(newBlockClass);
-    newBlockClass.walkAtRules('modifier', (modifierAtRule) => {
-      if(modifierAtRule.params === this.opts.modifier) {
-        _outdent(modifierAtRule);
-        modifierTopComponent = _getCorrespondingTopdocComponent(this.topdoc, modifierAtRule.prev().source.end);
-        modifierAtRule.each((childNode) => {
-          if(childNode.type === 'atrule' && childNode.name === 'state') {
-            let matchFlag = false;
-            newBlockClass.walkAtRules('state', (stateAtRule) => {
-              if(stateAtRule.parent === atRule) {
-                if(stateAtRule.params === childNode.params) {
-                  childNode.each((grandChildNode) => {
-                    stateAtRule.append(grandChildNode);
-                    matchFlag = true;
-                  });
-                }
-              }
-            });
-            if(!matchFlag){
-              newBlockClass.prepend(childNode);
-            }
-          } else {
-            newBlockClass.append(childNode);
+  processBlockRule(blockRule) {
+    this.modifierTopdocs = {};
+    this.nestedParts = [];
+    this.matchedModifiers = [];
+    this.stateRules = {};
+    blockRule.each(node => {
+      if (node.type === 'atrule') {
+        this.processAtRule(node);
+      }
+    });
+    this.matchedModifiers = this.opts.modifiers.filter(modifier => {
+      return (this.matchedModifiers.indexOf(modifier) >= 0);
+    });
+    this.processNestedParts(this.nestedParts, blockRule);
+    this.processTopdocComments(blockRule);
+    const blockRuleSelector = this.opts.selectorNaming(_getAtRuleBreakdown(blockRule, {
+      modifier: this.matchedModifiers
+    }));
+    return blockRule.replaceWith(_convertAtRuleToRule(blockRule, blockRuleSelector));
+  }
+  /**
+   *  Private: processes nested {Nodes}
+   *
+   *  * `nestedParts` {Array} PostCSS nodes
+   *  * `blockRule` {Object} PostCSS parent block rule
+   */
+  processNestedParts(nestedParts, blockRule) {
+    nestedParts.forEach(part => {
+      if (!part.breakdown.hasOwnProperty('modifier') || part.breakdown.modifier == '') {
+        switch (part.atRule.name) {
+          case 'state':
+            this.processStateRule(part.atRule, blockRule)
+            break;
+        }
+      }
+    });
+    this.opts.modifiers.forEach(modifier => {
+      nestedParts.forEach(part => {
+        if (part.breakdown.hasOwnProperty('modifier') && part.breakdown.modifier === modifier) {
+          switch (part.atRule.name) {
+            case 'modifier':
+              this.processModifierRule(part.atRule, blockRule);
+              break;
+            case 'state':
+              this.processStateRule(part.atRule, blockRule)
+              break;
           }
-        });
-      }
-      if(_getCorrespondingTopdocComponent(this.topdoc, modifierAtRule.prev().source.end)) {
-        modifierAtRule.prev().remove();
-      }
-      modifierAtRule.remove();
-    });
-    newBlockClass.walkAtRules('state', (subAtRule) => {
-      const stateRuleSelector = this.opts.selectorNaming({block: atRule.params, modifier: this.opts.modifier, state: subAtRule.params});
-      stateNames.push(
-        { blockName: this.opts.domNaming({
-          block: atRule.params,
-          modifier: this.opts.modifier,
-          state: subAtRule.params
-        })
+        }
       });
-      _outdent(newBlockClass.cloneAfter(_convertAtRuleToRule(subAtRule, stateRuleSelector)));
-      subAtRule.remove();
     });
+  }
+  /**
+   *  Private: processes state {AtRule}
+   *
+   *  * `stateRule` {AtRule} with a name of 'state'
+   *  * `blockRule` {AtRule} that contains the `stateRule`
+   */
+  processStateRule(stateRule, blockRule) {
+    const stateRuleSelector = this.opts.selectorNaming({
+      block: blockRule.params,
+      modifier: this.matchedModifiers,
+      state: stateRule.params
+    });
+    if (this.stateRules.hasOwnProperty(stateRuleSelector)) {
+      _mergeRules(this.stateRules[stateRuleSelector], stateRule.nodes);
+      stateRule.remove();
+      return this.stateRules[stateRuleSelector];
+    } else {
+      const beforeNode = ((Object.keys(this.stateRules).length == 0)) ? blockRule : Object.values(this.stateRules)[Object.values(this.stateRules).length - 1];
+      const result = beforeNode.cloneAfter(_convertAtRuleToRule(stateRule, stateRuleSelector));
+      result.stateName = stateRule.params;
+      this.stateRules[stateRuleSelector] = result;
+      stateRule.remove();
+      return result;
+    }
+  }
+  /**
+   *  Private: processes modifier {AtRule}
+   *
+   *  * `modifierRule` {AtRule} with a name of 'modifier'
+   *  * `blockRule` {AtRule} that contains the `modifierRule`
+   */
+  processModifierRule(modifierRule, blockRule) {
+    modifierRule.each(node => {
+      if (node.type === 'atrule') {
+        switch (node.name) {
+          case 'state':
+            _outdent(node);
+            this.processStateRule(node, blockRule);
+            break;
+        }
+      }
+    });
+    return _mergeRules(blockRule, modifierRule.nodes);
+  }
+  /**
+   *  Private: merges Topdoc comments when modifier Topdoc data exists
+   *
+   *  * `blockRule` {AtRule} that has the existing Topdoc comments
+   */
+  processTopdocComments(blockRule) {
+    const topComponent = _getCorrespondingTopdocComponent(this.topdoc, blockRule);
     if (topComponent) {
-      Object.assign(topComponent, modifierTopComponent);
+      this.matchedModifiers.forEach(modifier => {
+        Object.assign(topComponent, this.modifierTopdocs[modifier]);
+      });
+      const stateNames = [{
+        blockName: this.opts.domNaming({
+          block: blockRule.params,
+          modifier: this.matchedModifiers
+        })
+      }];
+
+      Object.values(this.stateRules).forEach(state => {
+        stateNames.push({
+          blockName: this.opts.domNaming({
+            block: blockRule.params,
+            modifier: this.matchedModifiers,
+            state: state.stateName
+          })
+        });
+      });
       const cleanComponent = Object.keys(topComponent).reduce((component, componentKey) => {
         if (componentKey === 'markup') {
-          component[componentKey] = Mustache.render(topComponent.markup, {state: stateNames});
+          component[componentKey] = Mustache.render(topComponent.markup, {
+            state: stateNames
+          });
         } else if (componentKey !== 'commentStart' && componentKey !== 'commentEnd' && componentKey !== 'css') {
           component[componentKey] = topComponent[componentKey];
         }
@@ -222,8 +425,7 @@ export default class TopcoatNaming {
       const newComment = postcss.parse(`/* topdoc
 ${yamlString.trim()}
 */`);
-      // console.log(newComment.first.toString());
-      topComment.replaceWith(newComment.first);
+      return blockRule.prev().replaceWith(newComment.first);
     }
   }
 }
