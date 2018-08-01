@@ -25,17 +25,13 @@ import yaml from 'js-yaml';
  */
 function _defaultSelectorClassNaming({
   block,
-  modifier = false,
+  modifier,
   state = false
 }) {
   let result = `.${block}`;
-  if (Array.isArray(modifier)) {
-    modifier.forEach(mod => {
-      result += `--${mod}`;
-    });
-  } else if (modifier) {
-    result += `--${modifier}`;
-  }
+  modifier.forEach(mod => {
+    result += `--${mod}`;
+  });
   if (state) {
     const stateRegex = /^:?(\w+)$/;
     const matches = state.match(stateRegex);
@@ -71,17 +67,13 @@ function _defaultSelectorClassNaming({
  */
 function _defaultDomClassNaming({
   block,
-  modifier = false,
+  modifier,
   state = false
 }) {
   let result = `${block}`;
-  if (Array.isArray(modifier)) {
-    modifier.forEach(mod => {
-      result += `--${mod}`;
-    });
-  } else if (modifier) {
-    result += `--${modifier}`;
-  }
+  modifier.forEach(mod => {
+    result += `--${mod}`;
+  });
   if (state) {
     const stateRegex = /^:?(\w+)$/;
     const matches = state.match(stateRegex);
@@ -119,7 +111,7 @@ function _getAtRuleBreakdown(node, breakdown = {}) {
         breakdown.state = node.params;
         break;
     }
-  } else if (node.type === 'root') {
+  } else {
     return breakdown;
   }
   return _getAtRuleBreakdown(node.parent, breakdown);
@@ -134,15 +126,12 @@ function _getAtRuleBreakdown(node, breakdown = {}) {
  *  Returns {Object} PostCSS node
  */
 function _mergeRules(existingRule, newDecls) {
-  const decls = (Array.isArray(newDecls)) ? newDecls : [newDecls];
-  decls.forEach(newDecl => {
+  newDecls.forEach(newDecl => {
     let matched = false;
     existingRule.each(decl => {
-      if (decl.type === 'decl') {
-        if (decl.prop === newDecl.prop) {
-          matched = true;
-          decl.value = newDecl.value;
-        }
+      if (decl.prop === newDecl.prop) {
+        matched = true;
+        decl.value = newDecl.value;
       }
     });
     if (!matched) {
@@ -274,7 +263,7 @@ export default class TopcoatNaming {
         if (atRule.name === 'modifier') {
           this.result.modifiers.push(atRule.params);
           const modifierTopdocs = _getCorrespondingTopdocComponent(this.topdoc, atRule);
-          if(modifierTopdocs){
+          if (modifierTopdocs) {
             this.modifierTopdocs[atRule.params] = modifierTopdocs;
             atRule.prev().remove();
           }
@@ -330,9 +319,6 @@ export default class TopcoatNaming {
           switch (part.atRule.name) {
             case 'modifier':
               this.processModifierRule(part.atRule, blockRule);
-              break;
-            case 'state':
-              this.processStateRule(part.atRule, blockRule)
               break;
           }
         }
