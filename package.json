@@ -1,6 +1,6 @@
 {
   "name": "postcss-topcomponent",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A PostCSS plugin to collapse BEM atrules and corresponding Topdoc comments",
   "main": "lib/index.js",
   "scripts": {
